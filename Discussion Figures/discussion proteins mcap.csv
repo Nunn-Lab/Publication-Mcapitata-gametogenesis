@@ -1,0 +1,55 @@
+Protein ID,Protein name,Function,Month of interest
+augustus.g9942.t1,"ATP synthase subunit O, mitochondrial-like",Energy production,December
+augustus.g22334.t1,"ATP synthase-coupling factor 6, mitochondrial-like",Energy production,December
+augustus.g46712.t1,CAAX prenyl protease,Peptide metabolism,December
+augustus.g71159.t1,Cathepsin L,Peptide metabolism,December
+augustus.g59012.t1,Fatty acid synthase,Lipid metabolism,December
+augustus.g15718.t1,Group XV phospholipase A2 a,Lipid metabolism,December
+augustus.g25326.t1,Group XV phospholipase A2 b,Lipid metabolism,December
+augustus.g17146.t1,Isocitrate dehydrogenase a,Symbiont rejection,December
+augustus.g6322.t1,Isocitrate dehydrogenase b,Symbiont rejection,December
+augustus.g44013.t1,Lipase b,Lipid metabolism,December
+augustus.g61692.t1,Prosaposin,Lipid metabolism,December
+augustus.g29999.t1,Triglyceride lipase,Lipid metabolism,December
+augustus.g34630.t1,17beta hydroxysteroid dehydrogenase type 14,Hormones,March
+augustus.g53518.t1,26S proteasome non-ATPase regulatory subunit 3-like,Peptide metabolism,March
+augustus.g60137.t1,Centrin-3,DNA replication,March
+adi2mcaRNA7330_R6,collagen triple helix repeat-containing protein 1-like isoform X1,ECM,March
+adi2mcaRNA15301_R0,CUB and zona pellucida-like domain-containing protein 1 a,Oogenesis,March
+augustus.g65069.t1,CUB and zona pellucida-like domain-containing protein 1 c,Oogenesis,March
+augustus.g48503.t1,FMRF-amide neuropeptide,Neuronal signaling,March
+augustus.g29203.t1,Hydroxysteroid 11-beta-dehydrogenase 1-like protein,Hormones,March
+augustus.g33464.t1,hydroxysteroid dehydrogenase-like protein 2 isoform X1,Hormones,March
+augustus.g71542.t1,Lipase c,Lipid metabolism,March
+augustus.g70886.t1,nucleosome-remodeling factor subunit BPTF-like isoform X1,DNA replication,March
+adi2mcaRNA10569_R2,Phospholipase A2,Lipid metabolism,March
+augustus.g62142.t1,Phospholipase B-like b,Lipid metabolism,March
+augustus.g45512.t1,Phospholipase D3,Lipid metabolism,March
+augustus.g15994.t1,protein flightless-1-like,Hormones,March
+augustus.g31823.t1,Ras-related protein Rab11A,Symbiont rejection,March
+augustus.g63380.t1,SAP domain-containing protein,DNA replication,March
+augustus.g6370.t1,Saposin B-type domain-containing protein,Lipid metabolism,March
+augustus.g50829.t1,"Steroid 17-alpha-hydroxylase/17,20 lyase",Hormones,March
+augustus.g7070.t1,"Steroidogenic acute regulatory protein, mitochondrial",Hormones,March
+augustus.g64087.t1,"Succinate-semialdehyde dehydrogenase, mitochondrial",Symbiont rejection,March
+augustus.g50137.t1,UPAR/Ly6 domain-containing protein,Neuronal signaling,March
+augustus.g34452.t1,Vitellogenin a,Oogenesis,March
+augustus.g26387.t1,Vitellogenin b,Oogenesis,March
+augustus.g66867.t1,Vitellogenin domain-containing protein,Oogenesis,March
+augustus.g16288.t1,zinc metalloproteinase mas-15,ECM,March
+augustus.g58302.t1,Zona pellucida domain-containing protein,Oogenesis,March
+augustus.g58301.t1,Zona pellucida sperm-binding protein 2,Oogenesis,March
+augustus.g41242.t1,Carbonic anhydrase a,Skeletogenesis,October
+augustus.g48221.t1,Carbonic anhydrase b,Skeletogenesis,October
+augustus.g51186.t1,Carbonic anhydrase c,Skeletogenesis,October
+augustus.g51187.t1,Carbonic anhydrase d,Skeletogenesis,October
+augustus.g42340.t1,Caspase 8,ROS response,October
+augustus.g41342.t1,Caspase-3/9-like protein,ROS response,October
+augustus.g13813.t1,Glutamine synthetase,Symbiont rejection,October
+augustus.g20113.t1,Glutathione S-transferase 1,ROS response,October
+augustus.g24410.t1,leukocyte elastase inhibitor-like,ROS response,October
+adi2mcaRNA9177_R0,Peroxidasin a,ROS response,October
+adi2mcaRNA9177_R2,Peroxidasin b,ROS response,October
+adi2mcaRNA25672_R2,Phospholipase B-like a,Lipid metabolism,October
+augustus.g14555.t1,protein disulfide-isomerase A6-like,ROS response,October
+augustus.g58944.t1,Urease,Symbiont rejection,October
