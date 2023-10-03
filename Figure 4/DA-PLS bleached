@@ -10,7 +10,7 @@ library(topGO) #SparseM not compatible with current version of bioconductor
 library(mixOmics)
 
 #load biostats package
-source('~/Documents/Multivariate Stats/biostats.R')
+source('biostats.R')
 
 
 #read in data: columns are samples, rows are proteins. Values are NSAF.
