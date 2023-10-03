@@ -1,0 +1,222 @@
+#load biostats source code
+source('biostats.R')
+#load R packages
+library(dplyr)
+library(cluster)
+library(vegan)
+library(WGCNA)
+library(ggthemes)
+library(reshape)
+library(ggplot2)
+library(pvclust)
+
+coral.proteins<-read.csv('Coral Time Series Shumaker NSAF.csv', row.names=1)
+
+#HIERARCHICAL CLUSTERING
+#fix column names
+names(coral.proteins)<-gsub(x=names(coral.proteins), pattern='X', replacement='g')
+colnames(coral.proteins)<-sub("g25NBT0_32", "g25NBT2_32", colnames(coral.proteins))
+colnames(coral.proteins)<-sub("g66NBT5_78", "g66NBT6_78", colnames(coral.proteins))
+
+#average by time point, across replicate corals
+coral.df<-data.frame(coral.proteins)
+T1<-cbind(coral.df$g10NBT0_22, coral.df$g13NBT0_112, coral.df$g20NBT0_73, coral.df$g21NBT0_35,coral.df$g25NBT0_102, coral.df$g26NBT0_81, coral.df$g28NBT0_120,coral.df$g55NBT0_19, coral.df$g5NBT0_39, coral.df$g66NBT0_129,coral.df$g73NBT0_91,coral.df$g74NBT0_64)
+
+BT2<-cbind(coral.df$g10BT2_43, coral.df$g13BT2_71,coral.df$g21BT2_40,coral.df$g26BT2_127,coral.df$g55BT2_96, coral.df$g5BT2_110, coral.df$g66BT2_17, coral.df$g73BT2_21, coral.df$g74BT2_88)
+BT3<-cbind(coral.df$g10BT3_67, coral.df$g13BT3_33,coral.df$g21BT3_118,coral.df$g26BT3_77,coral.df$g66BT3_15,coral.df$g74BT3_111)
+BT4<-cbind(coral.df$g10BT4_18, coral.df$g13BT4_113,coral.df$g26BT4_44,coral.df$g66BT4_63,coral.df$g74BT4_87)
+BT5<-cbind(coral.df$g10BT5_20, coral.df$g13BT5_126,coral.df$g21BT5_89,coral.df$g26BT5_115,coral.df$g66BT5_34,coral.df$g74BT5_52)
+BT6<-cbind(coral.df$g10BT6_100, coral.df$g13BT6_45,coral.df$g21BT6_25,coral.df$g26BT6_80,coral.df$g66BT6_74)
+
+NBT2<-cbind(coral.df$g10NBT2_90, coral.df$g13NBT2_101,coral.df$g20NBT2_123,coral.df$g21NBT2_26,coral.df$g25NBT2_32, coral.df$g26NBT2_49, coral.df$g28NBT2_24,coral.df$g55NBT2_79, coral.df$g5NBT2_66, coral.df$g66NBT2_119,coral.df$g73NBT2_108, coral.df$g74NBT2_42)
+NBT3<-cbind(coral.df$g10NBT3_121, coral.df$g13NBT3_27,coral.df$g21NBT3_50,coral.df$g26NBT3_104,coral.df$g66NBT3_37, coral.df$g74NBT3_97)
+NBT4<-cbind(coral.df$g10NBT4_70, coral.df$g13NBT4_38,coral.df$g26NBT4_105,coral.df$g66NBT4_95,coral.df$g74NBT4_28)
+NBT5<-cbind(coral.df$g10NBT5_41, coral.df$g13NBT5_23,coral.df$g21NBT5_72,coral.df$g26NBT5_130,coral.df$g66NBT6_94,coral.df$g74NBT5_114)
+NBT6<-cbind(coral.df$g10NBT6_128, coral.df$g13NBT6_51,coral.df$g21NBT6_16,coral.df$g26NBT6_103,coral.df$g66NBT6_78,coral.df$g74NBT6_36)
+
+T1.avg<-rowMeans(T1)
+B2.avg<-rowMeans(BT2)
+B3.avg<-rowMeans(BT3)
+B4.avg<-rowMeans(BT4)
+B5.avg<-rowMeans(BT5)
+B6.avg<-rowMeans(BT6)
+NB2.avg<-rowMeans(NBT2)
+NB3.avg<-rowMeans(NBT3)
+NB4.avg<-rowMeans(NBT4)
+NB5.avg<-rowMeans(NBT5)
+NB6.avg<-rowMeans(NBT6)
+
+#create dataframe for 1 value per protein per time point
+coral.B<-data.frame(T1.avg, B2.avg, B3.avg, B4.avg, B5.avg, B6.avg)
+rownames(coral.B)<-rownames(coral.df)
+coral.NB<-data.frame(T1.avg, NB2.avg, NB3.avg, NB4.avg, NB5.avg, NB6.avg)
+rownames(coral.NB)<-rownames(coral.df)
+
+coral.B$sum<-rowSums(coral.B)
+coral.B<-subset(coral.B, select=c(T1.avg, B2.avg, B3.avg,B4.avg, B5.avg, B6.avg), sum>0)
+
+coral.NB$sum<-rowSums(coral.NB)
+coral.NB<-subset(coral.NB, select=c(T1.avg, NB2.avg, NB3.avg,NB4.avg, NB5.avg, NB6.avg), sum>0)
+
+#clustering
+B.bray<-vegdist(coral.B, method='bray')
+clust.B<-hclust(B.bray, method='average')
+plot(clust.B, labels=F)
+rect.hclust(clust.B, h=0.7)
+coef.hclust(clust.B)
+#0.90
+
+NB.bray<-vegdist(coral.NB, method='bray')
+clust.NB<-hclust(NB.bray, method='average')
+plot(clust.NB, labels=F)
+rect.hclust(clust.NB, h=0.7)
+coef.hclust(clust.NB)
+#0.91
+
+B2.cut<-cutree(clust.B, h=0.6)
+write.csv(B2.cut, 'cluster assignments B hierarchical 0.6.csv', quote=F)
+
+NB2.cut<-cutree(clust.NB, h=0.6)
+write.csv(NB2.cut, 'cluster assignments NB hierarchical 0.6.csv', quote=F)
+
+#open the exported .csvs in Excel and save again so that there are 2 columns of data
+prot.clustB2<-read.csv('cluster assignments B hierarchical 0.6.csv', header=T, row.names=1)
+#28 clusters
+
+prot.clustNB2<-read.csv('cluster assignments NB hierarchical 0.6.csv', header=T, row.names=1)
+#26 clusters
+
+names(prot.clustB2)[names(prot.clustB2)=='x']<-'cluster'
+
+names(prot.clustNB2)[names(prot.clustNB2)=='x']<-'cluster'
+
+merge.B2<-merge(x=coral.B, y=prot.clustB2, by='row.names', all.x=T)
+
+melt.B2<-melt(merge.B2, id.vars=c('Row.names', 'cluster'))
+
+#plot clusters of interests for non-bleached and bleached colonies
+##BLEACHED
+Bclust.T1<-subset(melt.B2, cluster==c(6, 10, 22))
+
+BT1.pl<-ggplot(Bclust.T1, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green', 'yellow'), labels=c('6', '10', '22')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+Bclust.T2 = subset(melt.B2,cluster == 8 | cluster == 12 | cluster == 14 | cluster == 15 | cluster == 21)
+
+BT2.pl<-ggplot(Bclust.T2, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green', 'yellow', 'orange', 'pink'), labels=c('8', '12', '14', '15', '21')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+Bclust.T3 = subset(melt.B2,cluster == 2 | cluster == 16)
+
+BT3.pl<-ggplot(Bclust.T3, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green'), labels=c('2', '16')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+Bclust.T4 = subset(melt.B2,cluster == 13)
+
+BT4.pl<-ggplot(Bclust.T4, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue'), labels=c('13')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+Bclust.T5 = subset(melt.B2,cluster == 5| cluster == 11| cluster == 25 | cluster == 27)
+
+BT5.pl<-ggplot(Bclust.T5, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green', 'yellow', 'orange'), labels=c('5', '11', '25', '27')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+Bclust.T6 = subset(melt.B2,cluster == 9| cluster == 17| cluster == 18 | cluster == 19)
+
+BT6.pl<-ggplot(Bclust.T6, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green', 'yellow', 'orange'), labels=c('9', '17', '18', '19')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+##NON-BLEACHED
+merge.NB2<-merge(x=coral.NB, y=prot.clustNB2, by='row.names', all.x=T)
+
+melt.NB2<-melt(merge.NB2, id.vars=c('Row.names', 'x'))
+
+NBclust.T1 = subset(melt.NB2,cluster == 8| cluster == 17)
+
+NBT1.pl<-ggplot(NBclust.T1, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green'), labels=c('8', '17')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+NBclust.T2 = subset(melt.NB2,cluster == 11| cluster == 12 |cluster == 20| cluster == 21)
+
+NBT2.pl<-ggplot(NBclust.T2, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green', 'yellow', 'orange'), labels=c('11', '12', '20', '21')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+NBclust.T3 = subset(melt.NB2,cluster == 1| cluster == 19)
+
+NBT3.pl<-ggplot(NBclust.T3, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green'), labels=c('1', '19')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+NBclust.T4 = subset(melt.NB2,x == 9| x == 14)
+
+NBT4.pl<-ggplot(NBclust.T4, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(x))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green'), labels=c('9', '14')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+NBclust.T5 = subset(melt.NB2,cluster == 13| cluster == 15 | cluster == 18)
+
+NBT5.pl<-ggplot(NBclust.T5, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green', 'yellow'), labels=c('13', '15', '18')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
+
+NBclust.T6 = subset(melt.NB2,cluster == 6| cluster == 10)
+
+NBT6.pl<-ggplot(NBclust.T6, aes(x=variable, y=value, group=Row.names)) +
+  geom_line(alpha=0.5, aes(color=factor(cluster))) +
+  theme_bw() +
+  labs(x='Time Point', y='Averaged Normalized Spectral Abundance Factor')+
+  theme(axis.text.x = element_text(angle=90,size=6)) +
+  scale_color_manual('Cluster', values=c('blue', 'green'), labels=c('6', '10')) +
+  scale_x_discrete(labels=c('Sept 2017', 'Oct 2017', 'Dec 2017', 'Mar 2018', 'Jun 2018', "Jul 2018"))
