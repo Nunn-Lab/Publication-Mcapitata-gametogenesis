@@ -1,0 +1,127 @@
+#load libraries
+library(ggplot2)
+library(reshape)
+library(ggpubr)
+
+#read in lipid, chlorophyll and symbiont data
+lipid.dat<-read.csv('lipid analysis.csv', na.strings='na')
+#remove one sample with na in Tolerance and reformat files
+lipid.dat2<-lipid.dat[!is.na(lipid.dat$Tolerance),]
+lipid.dat2$Time<-as.factor(lipid.dat2$Time)
+
+lipid.dat2$NewDate<-as.Date(lipid.dat2$Date, "%m/%d/%y")
+
+#read in chlorophyll data and format
+chl.dat<-read.csv('Mcap time series chlorophyll.csv', na.strings='na')
+chl.dat$NewDate<-as.Date(chl.dat$Date, "%m/%d/%y")
+
+#read in symbiont count data and reformat
+symb.count<-read.csv('Mcap time series symb counts.csv', na.strings='na')
+symb.count$NewDate<-as.Date(symb.count$X, "%m/%d/%y")
+
+#join together files based on date and colony
+merge1<-merge(x=lipid.dat2, y=chl.dat, by.x=c('ID', 'NewDate', 'Status'), by.y=c('Colony', 'NewDate', 'Status'), all=T)
+merge2<-merge(x=merge1, y=symb.count, by.x=c('ID', 'NewDate', 'Status'), by.y=c('Colony.No.', 'NewDate', 'Bleaching.Status'), all=T)
+
+data.summ<-subset(merge2, select=c('ID', 'NewDate', 'Status', "Lipid..Biomass..g.gdw.", "Chl.a.ug.g", "Symbionts.per.dry.tissue.mass..g."))
+data.melt<-melt(data.summ, id.vars=c('ID', 'NewDate', 'Status'))
+
+#add bar plot with 2009 egg size data
+egg.2009<-read.csv('egg size 2009.csv')
+
+#create dummy dates in 2018 to match 2009
+data.summ$Date2009<-data.summ$NewDate
+data.summ$Date2009<-gsub('2017-09-01', '2008-09-01', data.summ$Date2009)
+data.summ$Date2009<-gsub('2017-10-01', '2008-10-28', data.summ$Date2009)
+data.summ$Date2009<-gsub('2017-12-01', '2008-12-29', data.summ$Date2009)
+data.summ$Date2009<-gsub('2018-03-01', '2009-03-05', data.summ$Date2009)
+data.summ$Date2009<-gsub('2018-06-01', '2009-06-09', data.summ$Date2009)
+data.summ$Date2009<-gsub('2018-07-01', '2009-07-20', data.summ$Date2009)
+
+dat.2018.newrow1<-c('NA', '2018-01-01', 'NA', 'NA', 'NA', 'NA', '2009-08-19')
+dat.2018.newrow2<-c('NA', '2018-01-01', 'NA', 'NA', 'NA', 'NA', '2009-09-30')
+dat.2018.newrow3<-c('NA', '2018-01-01', 'NA', 'NA', 'NA', 'NA', '2009-02-05')
+dat.2018.newrow4<-c('NA', '2018-01-01', 'NA', 'NA', 'NA', 'NA', '2009-04-01')
+dat.2018.newrow5<-c('NA', '2018-01-01', 'NA', 'NA', 'NA', 'NA', '2009-05-07')
+data.summ.newrows<-rbind(data.summ, dat.2018.newrow1, dat.2018.newrow2,dat.2018.newrow3,dat.2018.newrow4,dat.2018.newrow5)
+
+data.summ.newrows<-data.summ.newrows[-c(2)]
+data.melt2<-melt(data.summ.newrows, id.vars=c('ID', 'Date2009', 'Status'))
+
+data.melt2[data.melt2 == 'NA'] <- NA
+data.melt2$value<-as.numeric(data.melt2$value)
+
+lipid.sub<-subset(data.melt2, variable=='Lipid..Biomass..g.gdw.')
+lipid.sub$Date2009<-as.Date(lipid.sub$Date2009)
+
+#Plot each data set
+lipid.pl<-ggplot(data=lipid.sub,aes(x=Date2009, y=value, color=Status)) +
+  geom_point(fun='mean', stat='summary', show.legend=F) +
+  geom_line(fun='mean', stat='summary', show.legend=F) +
+  theme(panel.background = element_rect(fill='white'), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank() ) +
+  stat_summary(fun.data='mean_se', aes(colour=Status), show.legend=F) +
+  xlab('Date') +
+  ylab('Lipid Biomass (g/g dry weight)') +
+  scale_color_manual('Bleaching Status',values=c('deepskyblue', 'burlywood3'), labels=c('B', 'NB')) +
+  scale_x_date(limits = as.Date(c('2008-09-01', '2009-09-30')), expand=c(0.02, 0.02))
+
+
+chl.sub<-subset(data.melt2, variable=='Chl.a.ug.g')
+chl.sub$Date2009<-as.Date(chl.sub$Date2009)
+
+chl.pl<-ggplot(data=chl.sub,aes(x=Date2009, y=value, color=Status)) +
+  geom_point(fun='mean', stat='summary', show.legend=F) +
+  geom_line(fun='mean', stat='summary', show.legend=F) +
+  theme(panel.background = element_rect(fill='white'), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank() ) +
+  stat_summary(fun.data='mean_se', aes(colour=Status), show.legend=F) +
+  xlab('Date') +
+  ylab('Chlorophyll a (µg/g)') +
+  scale_color_manual('Bleaching Status',values=c('deepskyblue', 'burlywood3'), labels=c('B', 'NB')) +
+  scale_x_date(limits = as.Date(c('2008-09-01', '2009-09-30')), expand=c(0.02, 0.02))
+
+symb.sub<-subset(data.melt2, variable=='Symbionts.per.dry.tissue.mass..g.')
+symb.sub$Date2009<-as.Date(symb.sub$Date2009)
+
+symb.pl<-ggplot(data=symb.sub,aes(x=Date2009, y=value, color=Status)) +
+  geom_point(fun='mean', stat='summary', show.legend=F) +
+  geom_line(fun='mean', stat='summary', show.legend=F) +
+  theme(panel.background = element_rect(fill='white'), axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank() ) +
+  stat_summary(fun.data='mean_se', aes(colour=Status), show.legend=F) +
+  xlab('Date') +
+  ylab('Symbionts per gram dry tissue mass') +
+  scale_color_manual('Bleaching Status',values=c('deepskyblue', 'burlywood3'), labels=c('B', 'NB')) +
+  scale_x_date(limits = as.Date(c('2008-09-01', '2009-09-30')), expand=c(0.02, 0.02))
+
+
+
+
+egg.2009.newrow$Avg.egg.size[egg.2009.newrow$Avg.egg.size == 'NA'] <- NA
+egg.2009.newrow$Egg.stdev[egg.2009.newrow$Egg.stdev == 'NA'] <- NA
+egg.2009.newrow$Egg.stderr[egg.2009.newrow$Egg.stderr == 'NA'] <- NA
+egg.2009.newrow$Avg.egg.size<-as.numeric(egg.2009.newrow$Avg.egg.size)
+egg.2009.newrow$Egg.stdev<-as.numeric(egg.2009.newrow$Egg.stdev)
+egg.2009.newrow$Egg.stderr<-as.numeric(egg.2009.newrow$Egg.stderr)
+
+egg.bar2<-ggplot(data=egg.2009.newrow, aes(x=Date, y=Avg.egg.size)) +
+  geom_bar(stat='identity',fill='pink3', alpha=0.4) +
+  theme_bw() +
+  theme(panel.background = element_rect(fill='white'), panel.grid.major=element_blank(), axis.text.x = element_text(angle=90,size=6)) +
+  xlab('Date') +
+  ylab('Average egg size (µm)') +
+  geom_errorbar(aes(ymin=Avg.egg.size-Egg.stderr, ymax=Avg.egg.size+Egg.stderr), width=.2,
+                position=position_dodge(.9), color='gray50') 
+
+#put plots together
+all.pl<-ggarrange(symb.pl, chl.pl, lipid.pl, egg.bar2, 
+          ncol = 1, nrow = 4, align='hv')
+
+png("lipid chl symb v4.png", width=5, height=10, units = "in", res = 1200)
+all.pl
+dev.off()
+
