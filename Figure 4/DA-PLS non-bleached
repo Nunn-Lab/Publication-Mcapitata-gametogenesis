@@ -1,0 +1,544 @@
+library(tidyverse)
+library(heatmap3)
+library(RColorBrewer)
+library(plotrix)
+library(grid)
+library(vegan)
+
+#bioconductor packages
+library(topGO)
+library(mixOmics)
+
+#load biostats package
+source('~/Documents/Multivariate Stats/biostats.R')
+
+#****************************
+#read in data: columns are samples, rows are proteins. Values are NSAF.
+data <- read.csv("NSAF outliers removed.csv", header = TRUE, row.names = 1,check.names = FALSE)
+
+
+##clean up data frame
+rownames(data) <- gsub("X2019_APRIL_16_CORALS_TANYABROWN_","", rownames(data))
+#keep resistant samples
+resistant <- c(10,13,21,26,66,74)
+data.r <- data[(substr(rownames(data),1,2) %in% resistant),]
+#keep only un bleached samples
+data.nb <- data.r[(substr(rownames(data.r),3,3)=="N"),]
+data.nb <- data.nb[(substr(rownames(data.nb),6,6)!=0),] #remove time 0 samples
+#clean up rownames
+rows <- substr(rownames(data.nb),1,6)
+rows[24] <- "66N2T5"  #duplicate genotype/timepoint needs a unique identifier
+
+rownames(data.nb) <- rows
+
+#remove zero variance columns
+data.noVar <- data.nb[, sapply(data.nb, var) != 0]
+
+
+##meta data is the clusters you want to set (i.e. timepoint)
+meta <- substr(rownames(data.nb),6,6)
+
+
+
+##PLS DA
+x <- as.matrix(log(data.noVar+1))
+y <- meta
+
+plsda <- plsda(x,y, ncomp=4) #ncomp= (no. of clusters -1) (i.e. 5 timepoints-1=4)
+
+png("PLSDA for unbleached samples.png", width=8, height=8, units = "in", res = 150)
+plotIndiv(plsda, ind.names=FALSE, legend=TRUE, ellipse=TRUE, star=TRUE,
+          title="Montipora Capitata: Unbleached Samples", X.label="PLS-DA 1", 
+          Y.label="PLS-DA 2", style="graphics", cex=3, size.legend = 1,
+          legend.title="Timepoint")
+dev.off()
+
+
+
+##LOADINGS
+#dataframe from PLS-DA plot
+df <- data.frame(plsda$loadings$X)
+
+#x variate loadings: 
+#get necessary columns from df
+x.variate <- abs(df[c(1)])
+#order by decreasing loading value
+x.variate <- x.variate[(order(x.variate$comp1, decreasing=TRUE)),, drop=FALSE]
+#get top 50 protein names from rownames
+x.proteins <- rownames(x.variate)[1:50]
+#plot x loadings
+png("PLSDA1 loadings for unbleached samples.png", width=8, height=8, units = "in", res = 150)
+plot(c(1:nrow(x.variate)),x.variate$comp1,  xlab="protein rank", ylab="Abs(PLSDA1 loadings value)")
+abline(a=x.variate$comp1[50], b=0, col="red")
+dev.off()
+
+#y variate loadings: 
+#get necessary columns from df
+y.variate <- abs(df[c(2)])
+#order by decreasing loading value
+y.variate <- y.variate[(order(y.variate$comp2, decreasing=TRUE)),, drop=FALSE]
+#get top 50 protein names from rownames
+y.proteins <- rownames(y.variate)[1:50]
+#plot y loadings
+png("unbleached_samples/PLSDA2loadings for unbleached samples.png", width=8, height=8, units = "in", res = 150)
+plot(c(1:nrow(y.variate)),y.variate$comp2,  xlab="protein rank", ylab="Abs(PLSDA2 loadings value)")
+abline(a=y.variate$comp2[40], b=0, col="red")
+dev.off()
+
+#proteins from loadings
+top.proteins.nb <- unique(c(x.proteins, y.proteins))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#**************************************************
+#make datafrme of top proteins from PLSDA loadings
+#**************************************************
+top.proteins <- unique(c(top.proteins.nb))
+
+
+reduced.df <- data.nb[colnames(data.nb) %in% top.proteins]
+global_data <- t(reduced.df) #transpose
+
+
+#*******************
+# CLUSTERING 
+#*******************
+#re-order columns by timepoint
+t2 <- grep("T2",substr(colnames(global_data),(nchar(colnames(global_data))-1),nchar(colnames(global_data))))
+t3 <- grep("T3",substr(colnames(global_data),(nchar(colnames(global_data))-1),nchar(colnames(global_data))))
+t4 <- grep("T4",substr(colnames(global_data),(nchar(colnames(global_data))-1),nchar(colnames(global_data))))
+t5 <- grep("T5",substr(colnames(global_data),(nchar(colnames(global_data))-1),nchar(colnames(global_data))))
+t6 <- grep("T6",substr(colnames(global_data),(nchar(colnames(global_data))-1),nchar(colnames(global_data))))
+
+global_cut_data <- data.frame(global_data[,c(t2, t3, t4, t5, t6)], check.names=FALSE)
+
+
+#add 1 and log transform NSAF data
+cut_data <- (global_cut_data+1)
+cut_data_log <- data.trans(cut_data, method='log', plot=F) 
+
+#Perform clustering and determine cluster number for heatmap
+hm <- as.dist(1-cor(t.data.frame(cut_data_log), use="pa"))
+hm2 <- hclust(hm, method = 'complete')
+
+#Identify clades in heatmap
+mycl <- cutree(hm2, k=4)
+length(unique(mycl)) #number of clusters. Change h in above line to change no. of clusters
+
+#assign colors to cluster IDs
+clusterCols <- colorRampPalette(RColorBrewer::brewer.pal(4, "Purples"))(length(unique(mycl)))
+myClusterSideBar <- clusterCols[mycl]
+
+#for labeling columns in heatmap
+samplez <- colnames(global_cut_data)
+
+#plot heatmap 
+png("heatmap for PLSDA proteins in unbleached samples.png", width=15, height=15, units = "in", res = 300)
+heatmap3(as.matrix(cut_data_log),cexCol = 3, 
+         RowSideColors=clusterCols[mycl],
+         #ColSideColors = col,
+         RowAxisColors=1,ColAxisColors=1,hclustfun=hclust, 
+         distfun = function(x) as.dist(1 - cor(t(x), use = "pa")), 
+         method = "complete", scale = "row", Colv=NA,labRow = NA, 
+         RowSideLabs = NA, 
+         labCol = samplez, main="Montipora Capitata: PLSDA Proteins in Unbleached Samples",
+         margins=c(10,1))
+dev.off()
+
+
+
+
+#**********************************************************
+# Normalizing protein NSAF and setting up timepoint plots
+#**********************************************************
+#get color name from clusterCols..convert from hexadecimal to string name
+clusterColor <- lapply(myClusterSideBar, color.id)
+clusterColor <- lapply(clusterColor, `[[`,1)
+clusterColor <- data.frame(unlist(clusterColor), stringsAsFactors = FALSE)
+
+#attached cluster colors to protein names
+foo <- cbind(data.frame(mycl), clusterColor)
+foo$protein_ID <- rownames(foo) #add protein column to data frame for merging
+
+#add protein column back to NSAF data frame for merging
+cut_data_log_proteinID <- cut_data_log
+cut_data_log_proteinID$protein_ID <- rownames(cut_data_log)
+clade.prot <- merge(foo, cut_data_log_proteinID, by = "protein_ID")
+colnames(clade.prot)[3] <- "ClusterColor"
+
+
+#Rest of this section is normalizing within terms (autoscale by row)
+#calculate row means and SD
+x <- ncol(clade.prot)
+clade.prot$mean <- apply(clade.prot[,4:x], 1, mean)
+clade.prot$sd <- apply(clade.prot[,4:x],1, sd)
+
+#subtract the row mean from each value
+clade.prot_norm <- sweep(clade.prot[,4:x],1,clade.prot$mean)
+
+#divide each value by the row standard deviation
+clade.prot_norm <- sweep(clade.prot_norm[,1:ncol(clade.prot_norm)],1,clade.prot$sd, FUN = "/")
+clade.prot_norm <- cbind(clade.prot[,c("protein_ID","ClusterColor")], clade.prot_norm)
+
+#first dataframe..really used to dissect metadata. 
+STACKED_NSAF <- tidyr::gather(clade.prot_norm, timepointgenotype, NSAF, 3:ncol(clade.prot_norm))
+STACKED_NSAF$timepoint <- substr(STACKED_NSAF$timepointgenotype, nchar(STACKED_NSAF$timepointgenotype),nchar(STACKED_NSAF$timepointgenotype))
+STACKED_NSAF$genotype <- substr(STACKED_NSAF$timepointgenotype, 1,2)
+str(STACKED_NSAF)
+STACKED_NSAF$timepoint <- as.integer(STACKED_NSAF$timepoint)
+
+#make mean summary table for plotting summary lines of protein abundances/clade
+STACKED_NSAF_mean <- STACKED_NSAF %>%
+  dplyr::group_by(timepoint, ClusterColor) %>%
+  dplyr::summarise(n = n(), mean=mean(NSAF), median=median(NSAF), sd=sd(NSAF), sum=sum(NSAF)) %>%
+  dplyr::mutate(sem = sd / sqrt(n - 1),
+                CI_lower = mean + qt((1-0.95)/2, n - 1) * sem,
+                CI_upper = mean - qt((1-0.95)/2, n - 1) * sem)
+
+#change timepoints to months (timepoint 4 was 7 months after time), timepoint 3 was 4 months after T0, etc.)
+#just so graph can reflect calendar
+STACKED_NSAF_mean$timepoint <- gsub("4","7", STACKED_NSAF_mean$timepoint)
+STACKED_NSAF_mean$timepoint <- gsub("3","4", STACKED_NSAF_mean$timepoint)
+STACKED_NSAF_mean$timepoint <- gsub("5","10", STACKED_NSAF_mean$timepoint)
+STACKED_NSAF_mean$timepoint <- gsub("6","11", STACKED_NSAF_mean$timepoint)
+
+STACKED_NSAF_mean$timepoint <- as.integer(STACKED_NSAF_mean$timepoint)
+
+
+
+
+#to plot average of individual protein lines
+protein_avg <- STACKED_NSAF %>% group_by(protein_ID, timepoint, ClusterColor) %>% summarise(avg=mean(NSAF))
+#change timepoints to months (timepoint 4 was 7 months after time), timepoint 3 was 4 months after T0, etc.)
+#just so graph can reflect calendar
+protein_avg$timepoint <- gsub("4","7", protein_avg$timepoint)
+protein_avg$timepoint <- gsub("3","4", protein_avg$timepoint)
+protein_avg$timepoint <- gsub("5","10", protein_avg$timepoint)
+protein_avg$timepoint <- gsub("6","11", protein_avg$timepoint)
+
+protein_avg$timepoint <- as.integer(protein_avg$timepoint)
+
+
+
+#************************************
+#TIMEPOINT PLOTS  
+#************************************
+#color of main line in each timepoint plot. Also clade colors
+fills.line <- c(rep("grey", 100))
+
+avg <- ggplot() + 
+  geom_line(data=protein_avg,aes(x=timepoint, y=avg, col=protein_ID), size=0.25, method="loess", se=FALSE) +
+  scale_color_manual(values=fills.line)+
+  geom_smooth(data=STACKED_NSAF_mean,aes(x=timepoint, y=mean), size=4, method="loess", se=FALSE, color="black") +
+  ylab("mean autoscaled NSAF") + 
+  facet_wrap(~ClusterColor, ncol=2) + 
+  scale_x_continuous(breaks = c(2,4,7,10,11), labels = c("Oct", "Dec","Mar","Jun","Jul")) + 
+  theme_bw()+
+  theme(text = element_text(size=30),
+        strip.text = element_text(face = "bold",size = 0), #change size to 0 to remove color name from plot
+        strip.background = element_rect(fill="white"),
+        legend.position = "none")
+
+#to get strip color in facet_wrap
+g <- ggplot_gtable(ggplot_build(avg))
+strip_t <- which(grepl('strip-t', g$layout$name))
+#fills <- c(unique(STACKED_NSAF_mean$ClusterColor))
+fills.strip <- c("#F2F0F7", "#CBC9E2", "#9E9AC8", "#6A51A3")
+
+
+k <- 1
+for (i in strip_t) {
+  j <- which(grepl('rect', g$grobs[[i]]$grobs[[1]]$childrenOrder))
+  g$grobs[[i]]$grobs[[1]]$children[[j]]$gp$fill <- fills.strip[k]
+  k <- k+1
+}
+
+png("PLSDA proteins for unbleached samples averaged over time.png", width=15, height=15, units = "in", res = 100)
+grid.draw(g)
+dev.off()
+
+
+
+
+
+
+
+
+
+#************************************
+#ENRICHMENT AND GO TERMS  ####
+#************************************
+
+##useful function
+goIdToTerm <- function(x, names = TRUE, keepNA = TRUE) {
+  stopifnot(requireNamespace("GO.db"))
+  stopifnot(requireNamespace("AnnotationDbi"))
+  ans <- rep(NA_character_, length(x))
+  names(ans) <- x
+  ids <- AnnotationDbi::GOID(GO.db::GOTERM)
+  i <- match(x, ids)
+  k <- which(!is.na(i))
+  res <- AnnotationDbi::Term(GO.db::GOTERM[i[k]])
+  ans[k] <- res
+  if (!keepNA) ans[is.na(ans)] <- names(ans[is.na(ans)])
+  if (!names) names(ans) <- NULL
+  return(ans)
+}
+
+#read in annotation
+annotation <- read.delim("annotation_Shumaker2019.txt")
+colnames(annotation)[1] <- "protein_ID"
+
+
+#keep blast evales < 1e-10
+annotation.e <- annotation[which(annotation$`eValue` <= 1*10^-10),]
+
+#remove rows with NA values in GO_IDs.  even though it might have a blast hit
+annotation.e$GO_IDs <- gsub(";NA","", annotation.e$GO_IDs)
+annotation.e$GO_IDs <- gsub("NA;","", annotation.e$GO_IDs)
+
+annotation.GO <- annotation.e[(grep("GO:",annotation.e$GO_IDs)),]
+
+
+
+
+#A ----- clustered proteins
+#DAPC proteins by clades
+coral.prot <- data.frame(clade.prot[c(1,3)])     #from part 1
+coral.prot$protein_ID <- gsub(".*\\.(.*)\\..*", "\\1", coral.prot$protein_ID)
+clades.prot <- inner_join(annotation.GO, coral.prot, by="protein_ID")
+
+#sig_pro_GO= "protein_ID," "GO_IDs," and "ClusterColor
+sig_pro_GO <- clades.prot[c(1,13,15)]
+
+#print everything out
+write.csv(left_join(coral.prot, annotation.GO, by="protein_ID")[c(1:2,10, 14:15)], "Unbleached PLSDA proteins w Annotation.csv")
+
+
+
+
+#B -------- all proteins found in unbleached sample
+all <- colnames(data.nb)
+all <- gsub(".*\\.(.*)\\..*", "\\1", all)
+all.prot <- annotation.GO[(annotation.GO$protein_ID %in% all),] #remove annotations for proteins not in bleached samples
+
+ALL_pro_GO <- all.prot[c(1,13)]  #colnames = protein_ID, GO_IDs
+
+
+
+#C --------Enrichment 
+###this chunk generates p-values for weight01 fisher test like Liew paper (https://advances.sciencemag.org/content/4/6/eaar8028/tab-figures-data#ref-43)
+topgo_bkgd <- ALL_pro_GO
+topgo_bkgd$GO_IDs <- gsub(";",",",topgo_bkgd$GO_IDs)
+write.table(topgo_bkgd, "TopGO_bkgd_new.txt", sep = "\t",quote = FALSE, row.names = FALSE, col.names = FALSE)
+geneID2GO_bkgd <- readMappings(file = "TopGO_bkgd_new.txt")
+geneUniverse <- names(geneID2GO_bkgd) 
+
+#separate into clades
+topgo_sig <- sig_pro_GO
+topgo_sig$GO_IDs <- gsub(";",",",topgo_sig$GO_IDs)
+
+cluster_names <- unique(topgo_sig$ClusterColor)
+
+topgo_sig_1 <- topgo_sig[which(topgo_sig$ClusterColor == cluster_names[1]),c("protein_ID", "GO_IDs")]
+topgo_sig_2 <- topgo_sig[which(topgo_sig$ClusterColor == cluster_names[2]),c("protein_ID", "GO_IDs")]
+topgo_sig_3 <- topgo_sig[which(topgo_sig$ClusterColor == cluster_names[3]),c("protein_ID", "GO_IDs")]
+topgo_sig_4 <- topgo_sig[which(topgo_sig$ClusterColor == cluster_names[4]),c("protein_ID", "GO_IDs")]
+
+
+
+#enrichment per clade FOR BP, MF, CC
+#clade 1
+genesOfInterest_1 <- topgo_sig_1
+genesOfInterest_1 <- as.character(genesOfInterest_1$protein_ID)
+geneList_1 <- factor(as.integer(geneUniverse %in% genesOfInterest_1))
+names(geneList_1) <- geneUniverse
+
+myGOdata_BP1 <- new("topGOdata", description="time_clade1", ontology="BP", allGenes=geneList_1,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_BP1 <- runTest(myGOdata_BP1, algorithm="weight01", statistic="fisher") 
+allRes_BP1 <- GenTable(myGOdata_BP1, weight = resultFisher_BP1,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+myGOdata_MF1 <- new("topGOdata", description="time_clade1", ontology="MF", allGenes=geneList_1  ,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_MF1 <- runTest(myGOdata_MF1, algorithm="weight01", statistic="fisher") 
+allRes_MF1 <- GenTable(myGOdata_MF1, weight = resultFisher_MF1,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+myGOdata_CC1 <- new("topGOdata", description="time_clade1", ontology="CC", allGenes=geneList_1  ,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_CC1 <- runTest(myGOdata_CC1, algorithm="weight01", statistic="fisher") 
+allRes_CC1 <- GenTable(myGOdata_CC1, weight = resultFisher_CC1,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+
+
+#clade 2
+genesOfInterest_2 <- topgo_sig_2
+genesOfInterest_2 <- as.character(genesOfInterest_2$protein_ID)
+geneList_2 <- factor(as.integer(geneUniverse %in% genesOfInterest_2))
+names(geneList_2) <- geneUniverse
+
+myGOdata_BP2 <- new("topGOdata", description="time_clade2", ontology="BP", allGenes=geneList_2, annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_BP2 <- runTest(myGOdata_BP2, algorithm="weight01", statistic="fisher") 
+allRes_BP2 <- GenTable(myGOdata_BP2, weight = resultFisher_BP2,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+myGOdata_MF2 <- new("topGOdata", description="time_clade2", ontology="MF", allGenes=geneList_2, annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_MF2 <- runTest(myGOdata_MF2, algorithm="weight01", statistic="fisher") 
+allRes_MF2 <- GenTable(myGOdata_MF2, weight = resultFisher_MF2,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+myGOdata_CC2 <- new("topGOdata", description="time_clade2", ontology="CC", allGenes=geneList_2, annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_CC2 <- runTest(myGOdata_CC2, algorithm="weight01", statistic="fisher") 
+allRes_CC2 <- GenTable(myGOdata_CC2, weight = resultFisher_CC2,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+
+
+#clade 3
+genesOfInterest_3 <- topgo_sig_3
+genesOfInterest_3 <- as.character(genesOfInterest_3$protein_ID)
+geneList_3 <- factor(as.integer(geneUniverse %in% genesOfInterest_3))
+names(geneList_3) <- geneUniverse
+
+myGOdata_BP3 <- new("topGOdata", description="time_clade3", ontology="BP", allGenes=geneList_3,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_BP3 <- runTest(myGOdata_BP3, algorithm="weight01", statistic="fisher") 
+allRes_BP3 <- GenTable(myGOdata_BP3, weight = resultFisher_BP3,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+myGOdata_MF3 <- new("topGOdata", description="time_clade3", ontology="MF", allGenes=geneList_3,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_MF3 <- runTest(myGOdata_MF3, algorithm="weight01", statistic="fisher") 
+allRes_MF3 <- GenTable(myGOdata_MF3, weight = resultFisher_MF3,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+myGOdata_CC3 <- new("topGOdata", description="time_clade3", ontology="CC", allGenes=geneList_3,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_CC3 <- runTest(myGOdata_CC3, algorithm="weight01", statistic="fisher") 
+allRes_CC3 <- GenTable(myGOdata_CC3, weight = resultFisher_CC3,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+#clade 4
+genesOfInterest_4 <- topgo_sig_4
+genesOfInterest_4 <- as.character(genesOfInterest_4$protein_ID)
+geneList_4 <- factor(as.integer(geneUniverse %in% genesOfInterest_4))
+names(geneList_4) <- geneUniverse
+
+myGOdata_BP4 <- new("topGOdata", description="time_clade4", ontology="BP", allGenes=geneList_4,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_BP4 <- runTest(myGOdata_BP4, algorithm="weight01", statistic="fisher") 
+allRes_BP4 <- GenTable(myGOdata_BP4, weight = resultFisher_BP4,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+myGOdata_MF4 <- new("topGOdata", description="time_clade4", ontology="MF", allGenes=geneList_4,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_MF4 <- runTest(myGOdata_MF4, algorithm="weight01", statistic="fisher") 
+allRes_MF4 <- GenTable(myGOdata_MF4, weight = resultFisher_MF4,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+myGOdata_CC4 <- new("topGOdata", description="time_clade4", ontology="CC", allGenes=geneList_4,annot = annFUN.gene2GO, gene2GO = geneID2GO_bkgd)
+resultFisher_CC4 <- runTest(myGOdata_CC4, algorithm="weight01", statistic="fisher") 
+allRes_CC4 <- GenTable(myGOdata_CC4, weight = resultFisher_CC4,orderBy = "weight", ranksOf = "classic", topNodes = 100)
+
+
+
+
+
+
+#make big dataframe of all enriched terms
+#filter against background proteome and Fisher test p-value
+sub_allRes.BP1 <- allRes_BP1[which(allRes_BP1$Annotated >=3 & allRes_BP1$weight <= 0.05),]
+sub_allRes.BP2 <- allRes_BP2[which(allRes_BP2$Annotated >=3 & allRes_BP2$weight <= 0.05),]
+sub_allRes.BP3 <- allRes_BP3[which(allRes_BP3$Annotated >=3 & allRes_BP3$weight <= 0.05),]
+sub_allRes.BP4 <- allRes_BP4[which(allRes_BP4$Annotated >=3 & allRes_BP4$weight <= 0.05),]
+
+
+
+
+sub_allRes.MF1 <- allRes_MF1[which(allRes_MF1$Annotated >=3 & allRes_MF1$weight <= 0.05),]
+sub_allRes.MF2 <- allRes_MF2[which(allRes_MF2$Annotated >=3 & allRes_MF2$weight <= 0.05),]
+sub_allRes.MF3 <- allRes_MF3[which(allRes_MF3$Annotated >=3 & allRes_MF3$weight <= 0.05),]
+sub_allRes.MF4 <- allRes_MF4[which(allRes_MF4$Annotated >=3 & allRes_MF4$weight <= 0.05),]
+
+
+sub_allRes.CC1 <- allRes_CC1[which(allRes_CC1$Annotated >=3 & allRes_CC1$weight <= 0.05),]
+sub_allRes.CC2 <- allRes_CC2[which(allRes_CC2$Annotated >=3 & allRes_CC2$weight <= 0.05),]
+sub_allRes.CC3 <- allRes_CC3[which(allRes_CC3$Annotated >=3 & allRes_CC3$weight <= 0.05),]
+sub_allRes.CC4 <- allRes_CC4[which(allRes_CC4$Annotated >=3 & allRes_CC4$weight <= 0.05),]
+
+
+
+#make dataframe of enriched terms
+one <- c(sub_allRes.BP1$GO.ID,sub_allRes.MF1$GO.ID,sub_allRes.CC1$GO.ID)
+two <- c(sub_allRes.BP2$GO.ID,sub_allRes.MF2$GO.ID,sub_allRes.CC2$GO.ID)
+three <- c(sub_allRes.BP3$GO.ID,sub_allRes.MF3$GO.ID,sub_allRes.CC3$GO.ID)
+four <- c(sub_allRes.BP4$GO.ID,sub_allRes.MF4$GO.ID,sub_allRes.CC4$GO.ID)
+
+
+
+term <- c(one, two, three, four)
+
+GO_type <- c(rep("BP", length(sub_allRes.BP1$GO.ID)), rep("MF", length(sub_allRes.MF1$GO.ID)),rep("CC", length(sub_allRes.CC1$GO.ID)),
+             rep("BP", length(sub_allRes.BP2$GO.ID)), rep("MF", length(sub_allRes.MF2$GO.ID)),rep("CC", length(sub_allRes.CC2$GO.ID)),
+             rep("BP", length(sub_allRes.BP3$GO.ID)), rep("MF", length(sub_allRes.MF3$GO.ID)),rep("CC", length(sub_allRes.CC3$GO.ID)),
+             rep("BP", length(sub_allRes.BP4$GO.ID)), rep("MF", length(sub_allRes.MF4$GO.ID)),rep("CC", length(sub_allRes.CC4$GO.ID)))
+
+ClusterColor <- c(rep(cluster_names[1], length(one)),
+                  rep(cluster_names[2], length(two)),
+                  rep(cluster_names[3], length(three)),
+                  rep(cluster_names[4], length(four)))
+
+names <- unname(goIdToTerm(term))
+
+finale <- data.frame(term=term,GO_type=GO_type,  names=names, ClusterColor=ClusterColor)
+write.csv(finale, "enriched GO for PLSDA proteins for unbleached samples.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#***************************************
+#*nmds
+#***************************************
+
+#add 1 and log transform NSAF data
+cut_data <- (global_cut_data+1)
+coral.tra <- t(data.trans(cut_data, method='log', plot=F))
+
+#nmds
+nmds2<-metaMDS(coral.tra, distance='bray', k=2, trymax=100, autotransform=F)
+ordiplot(nmds2, choices=c(1,2), type='text', display='sites', cex=0.5)
+
+
+
+
+#pretty plots
+prot.coral <- t(coral.tra)
+
+tp <- substr(colnames(prot.coral), nchar(colnames(prot.coral)),nchar(colnames(prot.coral)))
+tp.col <- gsub("2","red",tp)
+tp.col <- gsub("3","coral",tp.col)
+tp.col <- gsub("4","green",tp.col)
+tp.col <- gsub("5","blue",tp.col)
+tp.col <- gsub("6","purple",tp.col)
+
+colors.g <- c("red","coral","green","blue","purple")
+legend.g <- c("Time2","Time3","Time4","Time5","Time6")
+
+pch.1 <- c(rep(21, ncol(prot.coral)))
+pch.2 <- c(rep(21, 5))
