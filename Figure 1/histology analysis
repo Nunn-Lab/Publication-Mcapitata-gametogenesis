@@ -6,41 +6,42 @@ library(nlme)
 library(dplyr)
 library(tidyr)
 library(reshape)
-library(RColorBrewer)
 
 #the analysis below was based on code available from Leinbach et al. 2021 - https://github.com/sarahleinbach/hyacinthus_histo
 
+#Oocyte size
 oocyte.dat<-read.csv('montipora time series oocytes.csv')
 
 m.eggsize2<-lme(feret~Treatment, random=~1|Sample, data=oocyte.dat, na.action=na.omit)
 summary(m.eggsize2)
 
-Linear mixed-effects model fit by REML
-Data: oocyte.dat 
-AIC      BIC    logLik
-10229.83 10248.84 -5110.916
-
-Random effects:
-  Formula: ~1 | Sample
-(Intercept) Residual
-StdDev:    105.1299 92.17144
-
-Fixed effects:  feret ~ Treatment 
-Value Std.Error  DF  t-value p-value
-(Intercept)           193.88370  35.49774 848 5.461860       0
-TreatmentNon-Bleached  33.67456   7.19637 848 4.679383       0
-Correlation: 
-  (Intr)
-TreatmentNon-Bleached -0.102
-
-Standardized Within-Group Residuals:
-  Min         Q1        Med         Q3        Max 
--2.7164497 -0.7180663 -0.1465665  0.6155081  3.4248864 
-
-Number of Observations: 858
-Number of Groups: 9 
+#Linear mixed-effects model fit by REML
+#Data: oocyte.dat 
+#AIC      BIC    logLik
+#10229.83 10248.84 -5110.916
 
 
+#Random effects:
+#  Formula: ~1 | Sample
+#(Intercept) Residual
+#StdDev:    105.1299 92.17144
+
+#Fixed effects:  feret ~ Treatment 
+#Value Std.Error  DF  t-value p-value
+#(Intercept)           193.88370  35.49774 848 5.461860       0
+#TreatmentNon-Bleached  33.67456   7.19637 848 4.679383       0
+#Correlation: 
+#  (Intr)
+#TreatmentNon-Bleached -0.102
+
+#Standardized Within-Group Residuals:
+ # Min         Q1        Med         Q3        Max 
+#-2.7164497 -0.7180663 -0.1465665  0.6155081  3.4248864 
+
+#Number of Observations: 858
+#Number of Groups: 9 
+
+#plot the histogram of oocyte sizes
 ooc.hist <- 
   ggplot(data=oocyte.dat,aes(x=feret,fill=Treatment))+
   geom_histogram(binwidth=10,alpha=.6,position="identity")+
@@ -54,12 +55,9 @@ ooc.hist <-
   scale_fill_manual(name="Bleaching Status",values=c("lightblue", "burlywood2"),labels=c("Bleached","Non-bleached")) +
   geom_vline(aes(xintercept=216.7), color='lightblue') +
   geom_vline(aes(xintercept=266.6), color='burlywood2')
-  
 
-png("mcap feret diam histogram.png", width=3.5, height=3.5, units = "in", res = 1200, pointsize=8)
 ooc.hist
-dev.off()
-
+  
 #egg stages
 #count number of eggs at each stage for each individual
 oocyte.dat$NewName<-paste(oocyte.dat$Sample, "_", oocyte.dat$Treatment)
@@ -71,56 +69,48 @@ m.merge<-merge(x=m.stage.new, y=m.sub, by='NewName', all.x=T)
 mcap.eggstage<-glmer(n~NewStage+Treatment+(1|Sample), data=m.merge, family=poisson)
 summary(mcap.eggstage)
 
-Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [glmerMod]
-Family: poisson  ( log )
-Formula: n ~ NewStage + Treatment + (1 | Sample)
-Data: m.merge
+#Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [glmerMod]
+#Family: poisson  ( log )
+#Formula: n ~ NewStage + Treatment + (1 | Sample)
+#Data: m.merge
 
-AIC      BIC   logLik deviance df.resid 
-849.1    856.3   -420.6    841.1       40 
+#AIC      BIC   logLik deviance df.resid 
+#849.1    856.3   -420.6    841.1       40 
 
-Scaled residuals: 
-  Min     1Q Median     3Q    Max 
--4.983 -2.873 -1.418  2.349 12.516 
+#Scaled residuals: 
+ # Min     1Q Median     3Q    Max 
+#-4.983 -2.873 -1.418  2.349 12.516 
 
-Random effects:
-  Groups Name        Variance Std.Dev.
-Sample (Intercept) 0.5226   0.7229  
-Number of obs: 44, groups:  Sample, 9
+#Random effects:
+ # Groups Name        Variance Std.Dev.
+#Sample (Intercept) 0.5226   0.7229  
+#Number of obs: 44, groups:  Sample, 9
 
-Fixed effects:
-  Estimate Std. Error z value Pr(>|z|)    
-(Intercept)            3.33403    0.25905  12.870  < 2e-16 ***
-  NewStage              -0.26649    0.04192  -6.357 2.05e-10 ***
-  TreatmentNon-Bleached -0.01574    0.07279  -0.216    0.829    
----
-  Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+#Fixed effects:
+ # Estimate Std. Error z value Pr(>|z|)    
+#(Intercept)            3.33403    0.25905  12.870  < 2e-16 ***
+ # NewStage              -0.26649    0.04192  -6.357 2.05e-10 ***
+  #TreatmentNon-Bleached -0.01574    0.07279  -0.216    0.829    
+#---
+ # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-Correlation of Fixed Effects:
-  (Intr) NewStg
-NewStage    -0.289       
-TrtmntNn-Bl -0.085 -0.180
+#Correlation of Fixed Effects:
+ # (Intr) NewStg
+#NewStage    -0.289       
+#TrtmntNn-Bl -0.085 -0.180
 
-m.oocyte.stage2<-
-  ggplot(data=subset(m.merge, !is.na(NewStage)), aes(x=Treatment, y=n, fill=factor(NewStage))) +
-  stat_summary(fun="mean", geom='bar', color='grey80', position='fill')+
-  labs(x="", y="Proportion Oocytes in Stage") +
-  theme(strip.text.y = element_text(size=4), panel.background=element_rect(fill='white', color='grey50'), legend.position='bottom') +
-  scale_fill_manual(name='Oocyte Stage',labels=c('1', '2', '3', '4'), values=c("#F1EEF6", "#D7B5D8", "#DF65B0", "#CE1256"))
-
-oocyte.newcols<-
+#plot oocyte stages by bleaching status
+oocyte.stage<-
   ggplot(data=subset(m.merge, !is.na(NewStage)), aes(x=Treatment, y=n, fill=interaction(factor(NewStage), Treatment))) +
   stat_summary(fun="mean", geom='bar', color='grey80', position='fill')+
   labs(x="", y="Proportion Oocytes in Stage") +
   theme(strip.text.y = element_text(size=4), panel.background=element_rect(fill='white', color='grey50'), legend.position='bottom') +
   scale_fill_manual(name='Oocyte Stage',labels=c('1', '2', '3', '4','1', '2', '3', '4'), values=c('lightblue1', 'deepskyblue', 'royalblue3', 'darkblue', 'navajowhite2', 'burlywood3', 'chocolate', 'sienna4'))
 
-
-png("mcap oocyte stage stacked bar v3.png", width=3.5, height=3.5, units = "in", res = 1200, pointsize=6)
-oocyte.newcols
-dev.off()
+oocyte.stage
 
 #sperm stage
+#repeat above analysis for sperm
 sperm.dat<-read.csv('montipora time series sperm.csv')
 sperm.dat<-sperm.dat[,1:5]
 sperm.dat$Treatment<-c(rep('Bleached',7), rep('Non-Bleached',6))
@@ -137,53 +127,42 @@ sperm.m$variable<-as.numeric(sperm.m$variable)
 mcap.spmstage<-glmer(value~variable+Treatment+(1|Sample), data=sperm.m, family=poisson)
 summary(mcap.spmstage)
 
-Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [glmerMod]
-Family: poisson  ( log )
-Formula: value ~ variable + Treatment + (1 | Sample)
-Data: sperm.m
+#Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) [glmerMod]
+#Family: poisson  ( log )
+#Formula: value ~ variable + Treatment + (1 | Sample)
+#Data: sperm.m
 
-AIC      BIC   logLik deviance df.resid 
-86.1     91.5    -39.1     78.1       24 
+#AIC      BIC   logLik deviance df.resid 
+#86.1     91.5    -39.1     78.1       24 
 
-Scaled residuals: 
-  Min       1Q   Median       3Q      Max 
--0.85055 -0.47312 -0.00982  0.22403  1.67096 
+#Scaled residuals: 
+ # Min       1Q   Median       3Q      Max 
+#-0.85055 -0.47312 -0.00982  0.22403  1.67096 
 
-Random effects:
-  Groups Name        Variance Std.Dev.
-Sample (Intercept) 0        0       
-Number of obs: 28, groups:  Sample, 13
+#Random effects:
+ # Groups Name        Variance Std.Dev.
+#Sample (Intercept) 0        0       
+#Number of obs: 28, groups:  Sample, 13
 
-Fixed effects:
-  Estimate Std. Error z value Pr(>|z|)
-(Intercept)  0.31997    0.39503   0.810    0.418
-variable     0.12671    0.15960   0.794    0.427
-TreatmentNB -0.03848    0.28506  -0.135    0.893
+#Fixed effects:
+#  Estimate Std. Error z value Pr(>|z|)
+#(Intercept)  0.31997    0.39503   0.810    0.418
+#variable     0.12671    0.15960   0.794    0.427
+#TreatmentNB -0.03848    0.28506  -0.135    0.893
 
-Correlation of Fixed Effects:
-  (Intr) varibl
-variable    -0.873       
-TreatmentNB -0.246 -0.096
-optimizer (Nelder_Mead) convergence code: 0 (OK)
-boundary (singular) fit: see help('isSingular')
+#Correlation of Fixed Effects:
+ # (Intr) varibl
+#variable    -0.873       
+#TreatmentNB -0.246 -0.096
+#optimizer (Nelder_Mead) convergence code: 0 (OK)
+#boundary (singular) fit: see help('isSingular')
 
-brewer.pal(4, 'YlOrRd')
-
-m.sperm.stage2<-
-  ggplot(data=subset(sperm.m, !is.na(variable)), aes(x=Treatment, y=value, fill=factor(variable))) +
-  stat_summary(fun="mean", geom='bar', color='grey80', position='fill')+
-  labs(x="", y="Proportion Spermatocytes in Stage") +
-  theme(strip.text.y = element_text(size=4), panel.background=element_rect(fill='white', color='grey50'), legend.position='bottom') +
-  scale_fill_manual(name='Spermatocyte Stage',labels=c('1','2', '3', '4'), values=c("#FFFFB2", "#FECC5C", "#FD8D3C", "#E31A1C"))
-
-sperm.newcols<-
+#plot sperm stage bar plot by bleaching status
+sperm.stage<-
   ggplot(data=subset(sperm.m, !is.na(variable)), aes(x=Treatment, y=value, fill=interaction(factor(variable), Treatment))) +
   stat_summary(fun="mean", geom='bar', color='grey80', position='fill')+
   labs(x="", y="Proportion Spermatocytes in Stage") +
   theme(strip.text.y = element_text(size=4), panel.background=element_rect(fill='white', color='grey50'), legend.position='bottom') +
   scale_fill_manual(name='Spermatocyte Stage',labels=c('1','2', '3', '4','1','2', '3', '4'), values=c('lightblue1', 'deepskyblue', 'royalblue3', 'darkblue', 'navajowhite2', 'burlywood3', 'chocolate', 'sienna4'))
 
-
-png("mcap sperm stage stacked bar v3.png", width=3.5, height=3.5, units = "in", res = 1200, pointsize=6)
-sperm.newcols
-dev.off()
+sperm.stage
