@@ -1,0 +1,41 @@
+#physiological data with lmer (Carly Kenkel's suggestion)
+library(lme4)
+library(EnvStats)
+library(lmerTest)
+
+#####chlorophyll
+chl.dat<-read.csv('Mcap time series chlorophyll.csv', na.strings='na')
+
+chl.lm<-lmer(Chl.a.ug.g ~ Status + Time + (1|Colony), data=chl.dat)
+
+anova(chl.lm,ddf="Kenward-Roger") # genotype, time, initial size, and GxS are sig
+
+summary(chl.lm)
+rand(chl.lm)
+
+c2.lm<-lmer(Chl.c2.ug.g ~ Status + Time + (1|Colony), data=chl.dat)
+anova(c2.lm,ddf="Kenward-Roger")
+
+summary(c2.lm)
+rand(c2.lm)
+
+#####lipids
+lipid.dat<-read.csv('lipid analysis.csv', na.strings='na')
+#remove one sample with na in Tolerance
+lipid.dat2<-lipid.dat[!is.na(lipid.dat$Tolerance),]
+
+lipid.lm<-lmer(Lipid..Biomass..g.gdw. ~ Status + Time + (1|ID), data=lipid.dat2)
+
+anova(lipid.lm, ddf="Kenward-Roger")
+
+summary(lipid.lm)
+rand(lipid.lm)
+
+#####symbiont counts
+symb.count<-read.csv('Mcap time series symb counts.csv', na.strings='na')
+
+symb.lm<-lmer(Symbionts.per.dry.tissue.mass..g. ~ Bleaching.Status + Time + (1|Colony.No.), data=symb.count)
+anova(symb.lm, ddf="Kenward-Roger")
+
+summary(symb.lm)
+rand(symb.lm)
